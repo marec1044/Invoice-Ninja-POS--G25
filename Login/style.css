@@ -1,0 +1,169 @@
+body, html {
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', sans-serif;
+  background: #f2f3f7;
+  height: 100vh;
+}
+/*  */
+.full-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+.form-container {
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 0 20px rgba(0,0,0,0.1);
+  width: 400px;
+  text-align: center;
+}
+
+input, select {
+  width: 100%;
+  padding: 12px;
+  margin: 8px 0;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
+button {
+  width: 100%;
+  padding: 12px;
+  background-color: #4b27c2;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #3519a3;
+}
+
+h2 {
+  margin-bottom: 20px;
+  color: #333;
+}
+
+a {
+  color: #4b27c2;
+  text-decoration: none;
+}
+
+.error {
+  color: red;
+}
+
+.centered {
+  text-align: center;
+}
+
+.button {
+  padding: 15px 30px;
+  margin: 10px;
+  background-color: #4b27c2;
+  color: white;
+  border-radius: 8px;
+  display: inline-block;
+  text-decoration: none;
+}
+
+.logout {
+  display: block;
+  margin-top: 20px;
+  color: red;
+}
+.bills-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 20px 0;
+  font-size: 16px;
+  text-align: center;
+  background-color: #ffffff; /* خلفية بيضا */
+  color: #333; /* لون النص غامق */
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.bills-table th {
+  background-color: #2c3e50; /* غامق */
+  color: #fff; /* أبيض */
+  padding: 12px;
+}
+
+.bills-table td {
+  padding: 10px;
+  border-bottom: 1px solid #ddd;
+}
+
+.bills-table tr:hover {
+  background-color: #f2f2f2; /* تأثير عند المرور */
+}
+select, option {
+  background-color: #fff;   /* خلفية بيضاء */
+  color: #000;              /* النص أسود */
+  font-size: 15px;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+select:focus {
+  outline: none;
+  border-color: #3498db;   /* خط أزرق عند التحديد */
+}
+.form-container {
+  width: 400px;
+  margin: 50px auto;
+  background: #fff;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.form-container h2 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #2c3e50;
+}
+
+.form-container label {
+  font-weight: bold;
+  display: block;
+  margin: 10px 0 5px;
+  color: #333;
+}
+
+.form-container input, 
+.form-container select {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 15px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-size: 15px;
+  background: #fff;
+  color: #000; /* النص أسود */
+}
+
+.form-container button {
+  width: 100%;
+  padding: 12px;
+  background: #3498db;
+  border: none;
+  color: #fff;
+  font-size: 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.form-container button:hover {
+  background: #1abc9c;
+}
