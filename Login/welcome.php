@@ -560,13 +560,13 @@ $user = $_SESSION['user'];
                 <p class="section-subtitle">Access your most used features quickly and efficiently.</p>
             </div>
             <div class="actions-grid">
-                <div class="action-card" onclick="location.href='pay2.php'">
+                <div class="action-card" onclick="location.href='../payment/pay2.php'">
                     <div class="action-icon">
                         <i class="fas fa-file-invoice-dollar"></i>
                     </div>
                     <h3 class="action-title">Pay Bills</h3>
                     <p class="action-description">View and pay all your pending bills in one convenient location.</p>
-                    <a href="pay2.php" class="action-btn">Pay Now</a>
+                    <a href="../payment/pay2.php" class="action-btn">Pay Now</a>
                 </div>
                 <div class="action-card" onclick="location.href='user.php'">
                     <div class="action-icon">
