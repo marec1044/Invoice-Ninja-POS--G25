@@ -41,7 +41,7 @@ class UserSystem {
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
             error_log("getUserTransactions error: " . $e->getMessage());
-            return []; // إرجاع مصفوفة فارغة بدلاً من خطأ
+            return [];
         }
     }
     
@@ -57,21 +57,73 @@ class UserSystem {
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
             error_log("getUserBills error: " . $e->getMessage());
-            return []; // إرجاع مصفوفة فارغة بدلاً من خطأ
+            return [];
         }
     }
     
     public function updateUserInfo($userId, $data) {
         try {
-            $stmt = $this->db->prepare("
-                UPDATE users 
-                SET name = ?, email = ?, phone = ? 
-                WHERE id = ?
-            ");
-            return $stmt->execute([$data['name'], $data['email'], $data['phone'], $userId]);
+            $updateFields = [];
+            $params = [];
+            
+            if (!empty($data['name'])) {
+                $updateFields[] = "name = ?";
+                $params[] = $data['name'];
+            }
+            
+            if (!empty($data['email'])) {
+                $updateFields[] = "email = ?";
+                $params[] = $data['email'];
+            }
+            
+            if (!empty($data['phone'])) {
+                $updateFields[] = "phone = ?";
+                $params[] = $data['phone'];
+            }
+            
+            if (empty($updateFields)) {
+                throw new Exception("No data to update");
+            }
+            
+            $params[] = $userId;
+            
+            $sql = "UPDATE users SET " . implode(", ", $updateFields) . " WHERE id = ?";
+            $stmt = $this->db->prepare($sql);
+            $result = $stmt->execute($params);
+            
+            if ($result && $stmt->rowCount() > 0) {
+                $_SESSION['user'] = array_merge($_SESSION['user'], $data);
+                return true;
+            }
+            
+            return false;
         } catch (PDOException $e) {
             error_log("updateUserInfo error: " . $e->getMessage());
             throw new Exception("Failed to update user information");
+        }
+    }
+    
+    public function changePassword($userId, $currentPassword, $newPassword) {
+        try {
+            $stmt = $this->db->prepare("SELECT password FROM users WHERE id = ?");
+            $stmt->execute([$userId]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$user) {
+                throw new Exception("User not found");
+            }
+            
+            if (!password_verify($currentPassword, $user['password'])) {
+                throw new Exception("Current password is incorrect");
+            }
+            
+            $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
+            $stmt = $this->db->prepare("UPDATE users SET password = ? WHERE id = ?");
+            return $stmt->execute([$hashedPassword, $userId]);
+            
+        } catch (PDOException $e) {
+            error_log("changePassword error: " . $e->getMessage());
+            throw new Exception("Failed to change password");
         }
     }
     
@@ -90,26 +142,23 @@ class UserSystem {
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
             error_log("getBillsStatistics error: " . $e->getMessage());
-            return []; // إرجاع مصفوفة فارغة بدلاً من خطأ
+            return [];
         }
     }
 }
 
-// إصلاح مشكلة الحصول على user_id
 $userId = null;
 if (isset($_SESSION['user']['id'])) {
     $userId = $_SESSION['user']['id'];
 } elseif (isset($_SESSION['user_id'])) {
     $userId = $_SESSION['user_id'];
 } else {
-    // محاولة الحصول على user_id من البيانات المخزنة في الجلسة
     if (isset($_SESSION['user']) && is_array($_SESSION['user'])) {
         $userArray = $_SESSION['user'];
         $userId = $userArray['id'] ?? ($userArray['user_id'] ?? null);
     }
 }
 
-// إذا لم نجد user_id، إعادة توجيه لتسجيل الدخول
 if (!$userId) {
     error_log("User ID not found in session");
     session_destroy();
@@ -160,6 +209,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 echo json_encode([
                     'success' => $result,
                     'message' => $result ? 'Profile updated successfully' : 'Failed to update profile'
+                ]);
+                break;
+                
+            case 'change_password':
+                if (!isset($input['current_password']) || !isset($input['new_password'])) {
+                    throw new Exception("Password fields are required");
+                }
+                
+                if (strlen($input['new_password']) < 6) {
+                    throw new Exception("New password must be at least 6 characters long");
+                }
+                
+                $result = $userSystem->changePassword($userId, $input['current_password'], $input['new_password']);
+                echo json_encode([
+                    'success' => $result,
+                    'message' => $result ? 'Password changed successfully' : 'Failed to change password'
                 ]);
                 break;
                 
@@ -587,12 +652,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             transition: all var(--transition-speed) ease;
         }
 
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
         .btn-primary {
             background: var(--primary-color);
             color: white;
         }
 
-        .btn-primary:hover {
+        .btn-primary:hover:not(:disabled) {
             background: var(--primary-dark);
             transform: translateY(-2px);
         }
@@ -629,6 +699,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-size: 3rem;
             margin-bottom: 15px;
             opacity: 0.5;
+        }
+
+        .password-section {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 2px solid var(--border-color);
         }
 
         @media (max-width: 768px) {
@@ -875,11 +951,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <label class="form-label" for="editPhone">Phone Number</label>
                             <input type="tel" id="editPhone" class="form-control">
                         </div>
-                        <button type="submit" class="btn btn-primary">
+                        <button type="submit" class="btn btn-primary" id="updateProfileBtn">
                             <i class="fas fa-save"></i>
                             Update Profile
                         </button>
                     </form>
+
+                    <div class="password-section">
+                        <h4 style="color: var(--primary-color); margin-bottom: 20px;">
+                            <i class="fas fa-lock"></i>
+                            Change Password
+                        </h4>
+                        <form id="passwordForm">
+                            <div class="form-group">
+                                <label class="form-label" for="currentPassword">Current Password</label>
+                                <input type="password" id="currentPassword" class="form-control" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="newPassword">New Password</label>
+                                <input type="password" id="newPassword" class="form-control" required minlength="6">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="confirmPassword">Confirm New Password</label>
+                                <input type="password" id="confirmPassword" class="form-control" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary" id="changePasswordBtn">
+                                <i class="fas fa-key"></i>
+                                Change Password
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1038,16 +1139,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         function setupEventListeners() {
             const profileForm = document.getElementById('profileForm');
+            const passwordForm = document.getElementById('passwordForm');
+            
             profileForm.addEventListener('submit', handleProfileUpdate);
+            passwordForm.addEventListener('submit', handlePasswordChange);
+            
+            document.getElementById('confirmPassword').addEventListener('input', validatePasswordMatch);
+        }
+
+        function validatePasswordMatch() {
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            const confirmField = document.getElementById('confirmPassword');
+            
+            if (confirmPassword && newPassword !== confirmPassword) {
+                confirmField.setCustomValidity('Passwords do not match');
+            } else {
+                confirmField.setCustomValidity('');
+            }
         }
 
         async function handleProfileUpdate(event) {
             event.preventDefault();
             
+            const btn = document.getElementById('updateProfileBtn');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+            
             const formData = {
-                name: document.getElementById('editName').value,
-                email: document.getElementById('editEmail').value,
-                phone: document.getElementById('editPhone').value
+                name: document.getElementById('editName').value.trim(),
+                email: document.getElementById('editEmail').value.trim(),
+                phone: document.getElementById('editPhone').value.trim()
             };
 
             try {
@@ -1074,6 +1197,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } catch (error) {
                 console.error('Error updating profile:', error);
                 showError('Failed to update profile. Please try again.');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
+
+        async function handlePasswordChange(event) {
+            event.preventDefault();
+            
+            const btn = document.getElementById('changePasswordBtn');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Changing...';
+            
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            if (newPassword !== confirmPassword) {
+                showError('New passwords do not match');
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+                return;
+            }
+            
+            if (newPassword.length < 6) {
+                showError('New password must be at least 6 characters long');
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+                return;
+            }
+
+            try {
+                const response = await fetch('', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        action: 'change_password',
+                        current_password: currentPassword,
+                        new_password: newPassword
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showSuccess(data.message);
+                    document.getElementById('passwordForm').reset();
+                } else {
+                    throw new Error(data.error || 'Failed to change password');
+                }
+            } catch (error) {
+                console.error('Error changing password:', error);
+                showError(error.message || 'Failed to change password. Please try again.');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
             }
         }
 
@@ -1085,6 +1267,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             setTimeout(() => {
                 successMsg.style.display = 'none';
             }, 3000);
+            
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         function showError(message) {
@@ -1095,6 +1279,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             setTimeout(() => {
                 errorMsg.style.display = 'none';
             }, 5000);
+            
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         function downloadStatement() {
@@ -1222,14 +1408,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             window.URL.revokeObjectURL(url);
         }
 
-        // Keyboard shortcuts and animations
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape' && currentTab !== 'transactions') {
                 switchTab('transactions');
             }
         });
 
-        // Intersection observer for animations
         const observerOptions = {
             threshold: 0.1,
             rootMargin: '0px 0px -50px 0px'
@@ -1244,7 +1428,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             });
         }, observerOptions);
 
-        // Apply animations to elements
         const animatedElements = document.querySelectorAll('.profile-card, .quick-stats, .tab-content');
         animatedElements.forEach(el => {
             el.style.opacity = '0';
@@ -1253,7 +1436,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             observer.observe(el);
         });
 
-        // Add hover effects to stat cards
         document.querySelectorAll('.stat-card').forEach(card => {
             card.addEventListener('mouseenter', function() {
                 this.style.transform = 'translateY(-5px) scale(1.02)';
@@ -1264,7 +1446,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             });
         });
 
-        // Add hover effects to bill cards
         document.addEventListener('DOMContentLoaded', function() {
             setTimeout(() => {
                 document.querySelectorAll('.bill-card').forEach(card => {
@@ -1281,10 +1462,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }, 1000);
         });
 
-        // Add click animation to buttons
         document.querySelectorAll('.btn').forEach(btn => {
             btn.addEventListener('click', function(e) {
-                if (!this.classList.contains('tab-btn')) {
+                if (!this.classList.contains('tab-btn') && !this.disabled) {
                     const ripple = document.createElement('span');
                     const rect = this.getBoundingClientRect();
                     const size = Math.max(rect.width, rect.height);
@@ -1313,7 +1493,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             });
         });
 
-        // Add ripple animation CSS
         const rippleStyle = document.createElement('style');
         rippleStyle.textContent = `
             @keyframes ripple {
