@@ -6,7 +6,6 @@ if (isset($_POST['login'])) {
     $email = $_POST['email'];
     $password = $_POST['password'];
 
-    // استخدام prepared statements لحماية أفضل من SQL injection
     $sql = "SELECT * FROM users WHERE email = ?";
     $stmt = mysqli_prepare($conn, $sql);
     mysqli_stmt_bind_param($stmt, "s", $email);
@@ -16,16 +15,15 @@ if (isset($_POST['login'])) {
     if (mysqli_num_rows($result) == 1) {
         $user = mysqli_fetch_assoc($result);
         
-        // فحص كلمة المرور المشفرة باستخدام password_verify
         if (password_verify($password, $user['password'])) {
             $_SESSION['user'] = $user;
             header("Location: welcome.php");
             exit;
         } else {
-            $error = "البريد الإلكتروني أو كلمة المرور غير صحيحة.";
+            $error = "Incorrect email or password.";
         }
     } else {
-        $error = "البريد الإلكتروني أو كلمة المرور غير صحيحة.";
+        $error = "Incorrect email or password.";
     }
     
     mysqli_stmt_close($stmt);
